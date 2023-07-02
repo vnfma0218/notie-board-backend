@@ -1,4 +1,5 @@
-const { body, param, validationResult } = require('express-validator');
+const { body, validationResult } = require('express-validator');
+const { paginatedResults } = require('../middleware/paginate');
 const express = require('express');
 const Post = require('../models/post');
 
@@ -10,19 +11,26 @@ const validate = (req, res, next) => {
   if (errors.isEmpty()) {
     return next();
   }
-  return res.status(400).json({ message: errors.array()[0].msg });
+  return res.status(403).json({ message: errors.array()[0].msg });
 };
-
-router.get('/', async (req, res, next) => {
-  try {
-    const post = await Post.find();
-    res.json('post list');
-    // res.render('mongoose', { users });
-  } catch (err) {
-    console.error(err);
-    next(err);
-  }
+// 게시글 전체목록
+router.get('/', paginatedResults(Post), async (req, res, next) => {
+  res.status(200).json(res.paginatedResults);
 });
+// 게시글 상세
+router.get('/:id', async (req, res, next) => {
+  const id = req.params.id;
+  try {
+    const post = await Post.findById(id);
+    if (!post) {
+      return res.json(404);
+    }
+    if (post) {
+      return res.json(post);
+    }
+  } catch (error) {}
+});
+// 새 게시글 등록
 router.post(
   '/new',
   [
@@ -42,7 +50,7 @@ router.post(
         commentCount: 0,
       });
 
-      res.status(201).json(newPost);
+      res.status(201).json({ id: newPost._id });
       // res.render('mongoose', { users });
     } catch (err) {
       console.error(err);

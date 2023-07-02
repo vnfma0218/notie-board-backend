@@ -22,4 +22,14 @@ const postSchema = new Schema({
   },
 });
 
+// _id로 된 필드를 삭제하고 id값으로 바꿈
+// 가상버전으로 설정하였기 때문에 실제 스키마에 영향 x
+postSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) {
+    delete ret._id;
+  },
+});
+
 module.exports = mongoose.model('Post', postSchema);

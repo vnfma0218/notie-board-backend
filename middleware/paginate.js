@@ -7,6 +7,7 @@ function paginatedResults(model) {
     const startIdx = (page - 1) * limit;
     const endIdx = page * limit;
     results.total = await model.count();
+    results.pageCount = Math.ceil(results.total / limit);
 
     if (endIdx < results.total) {
       results.next = {

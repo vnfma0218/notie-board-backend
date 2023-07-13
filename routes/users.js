@@ -1,6 +1,8 @@
 const Axios = require('axios');
 const express = require('express');
 const generateTokens = require('../utils/generateTokens');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 const { authenticateToken } = require('../middleware/authenticationToken');
 
 require('dotenv').config();
@@ -75,6 +77,33 @@ router.get('/isLoggedIn', authenticateToken, async (req, res) => {
   } else {
     res.status(200).json({ isLoggedIn: false });
   }
+});
+router.get('/logout', async (req, res) => {
+  res.clearCookie('accessToken');
+  res.status(200).json({ message: 'success' });
+});
+router.post('/signup', async (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  const nickname = req.body.nickname;
+
+  bcrypt.genSalt(saltRounds, function (err, salt) {
+    if (err) return res.status(403);
+
+    bcrypt.hash(password, salt, function (err, hashedPassword) {
+      // hash의 첫번째 인자: 비밀번호의 Plain Text
+      if (err) return res.status(403);
+      console.log('hashedPassword', hashedPassword);
+      User.create({ email, password, nickname }).then(() => {
+        res.status(200).json({ message: 'success' });
+      });
+    });
+  });
+});
+// todo login
+router.get('/login', async (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
 });
 
 module.exports = router;

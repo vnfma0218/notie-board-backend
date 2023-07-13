@@ -1,6 +1,8 @@
 const Axios = require('axios');
 const express = require('express');
 const generateTokens = require('../utils/generateTokens');
+const { authenticateToken } = require('../middleware/authenticationToken');
+
 require('dotenv').config();
 const User = require('../models/user');
 
@@ -45,7 +47,7 @@ router.get('/auth/kakao', async (req, res) => {
     const existingUser = await User.findOne({ email });
     if (!existingUser) {
       // 회원 DB에 저장
-      const user = await User.create({
+      await User.create({
         email,
         snsType: 'kakao',
         nickname: res2.data.kakao_account.profile.nickname,
@@ -53,9 +55,6 @@ router.get('/auth/kakao', async (req, res) => {
     }
     const { accessToken, refreshToken } = await generateTokens(email);
     res.cookie(`accessToken`, accessToken, {
-      maxAge: 5000,
-      // expires works the same as the maxAge
-      // expires: new Date(),
       secure: true,
       httpOnly: true,
       sameSite: 'lax',
@@ -67,6 +66,14 @@ router.get('/auth/kakao', async (req, res) => {
   } catch (e) {
     console.log(e);
     res.status(400).end('Sorry, Login Error!');
+  }
+});
+
+router.get('/isLoggedIn', authenticateToken, async (req, res) => {
+  if (req.user.email) {
+    res.status(200).json({ isLoggedIn: true });
+  } else {
+    res.status(200).json({ isLoggedIn: false });
   }
 });
 

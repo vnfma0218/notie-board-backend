@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
-const sessions = require('express-session');
 
 const app = express();
 const port = 8080;
@@ -29,6 +28,7 @@ app.use(
   })
 );
 app.use(bodyParser.json());
+app.use(cookieParser());
 
 // 라우터 모듈
 const indexRouter = require('./routes');

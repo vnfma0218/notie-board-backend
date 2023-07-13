@@ -1,9 +1,11 @@
+const User = require('../models/user');
+const Post = require('../models/post');
+const express = require('express');
+const router = express.Router();
+
 const { body, validationResult } = require('express-validator');
 const { paginatedResults } = require('../middleware/paginate');
-const express = require('express');
-const Post = require('../models/post');
-
-const router = express.Router();
+const { authenticateToken } = require('../middleware/authenticationToken');
 
 // 검사 미들웨어 분리
 const validate = (req, res, next) => {
@@ -41,19 +43,19 @@ router.post(
     body('content').notEmpty().withMessage('내용을 입력해주세요.'),
     validate,
   ],
+  authenticateToken,
   async (req, res, next) => {
     try {
-      console.log('req.body', req.body);
+      const user = await User.findOne({ email: req.user.email });
       const newPost = await Post.create({
+        user: user._id,
         title: req.body.title,
         content: req.body.content,
         commentCount: 0,
       });
 
       res.status(201).json({ id: newPost._id });
-      // res.render('mongoose', { users });
     } catch (err) {
-      console.error(err);
       next(err);
     }
   }

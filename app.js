@@ -31,11 +31,9 @@ app.use(bodyParser.json());
 app.use(cookieParser());
 
 // 라우터 모듈
-const indexRouter = require('./routes');
 const postRouter = require('./routes/post');
 const usersRouter = require('./routes/users');
 // 라우터 연결
-app.use('/', indexRouter); // 기본 요청
 app.use('/post', postRouter); // post에 관한 요청
 app.use('/user', usersRouter); // post에 관한 요청
 app.get('/', (req, res) => {

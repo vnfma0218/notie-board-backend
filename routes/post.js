@@ -20,17 +20,18 @@ router.get('/', paginatedResults(Post), async (req, res, next) => {
   res.status(200).json(res.paginatedResults);
 });
 // 게시글 상세
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', authenticateToken, async (req, res, next) => {
+  const email = req.user.email;
   const id = req.params.id;
-  try {
-    const post = await Post.findById(id);
-    if (!post) {
-      return res.json(404);
-    }
-    if (post) {
-      return res.json(post);
-    }
-  } catch (error) {}
+  const foundedPost = await Post.findById(id).lean();
+  const user = await User.findOne({ email });
+  if (foundedPost) {
+    return res
+      .status(200)
+      .json({ ...foundedPost, isMine: foundedPost.user.equals(user._id) });
+  } else {
+  }
+  return;
 });
 // 새 게시글 등록
 router.post(

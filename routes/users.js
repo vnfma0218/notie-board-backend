@@ -10,11 +10,9 @@ const User = require('../models/user');
 
 const router = express.Router();
 
-// 소셜로그인 리다이렉트 url
+// 소셜로그인
 router.get('/auth/kakao', async (req, res) => {
   const code = req.query.code;
-  console.log('code', code);
-  console.log('process.env.KAKAO_RESTAPIKEY', process.env.KAKAO_RESTAPIKEY);
   try {
     // Access token 가져오기
     const res1 = await Axios.post(
@@ -87,23 +85,55 @@ router.post('/signup', async (req, res) => {
   const password = req.body.password;
   const nickname = req.body.nickname;
 
+  // 닉네임 email 중복체크
+  const existingUser = await User.findOne({
+    $or: [{ email }, { nickname }],
+  });
+  if (existingUser) {
+    // 409 conflict 리소스 충돌 의미
+    return res.status(409).json({
+      resultCode: 4009,
+      message: '중복된 이메일 혹은 닉네임이 존재합니다.',
+    });
+  }
+
   bcrypt.genSalt(saltRounds, function (err, salt) {
     if (err) return res.status(403);
-
     bcrypt.hash(password, salt, function (err, hashedPassword) {
       // hash의 첫번째 인자: 비밀번호의 Plain Text
       if (err) return res.status(403);
       console.log('hashedPassword', hashedPassword);
-      User.create({ email, password, nickname }).then(() => {
-        res.status(200).json({ message: 'success' });
+      User.create({ email, password: hashedPassword, nickname }).then(() => {
+        res.status(200).json({ resultCode: 2000, message: 'success' });
       });
     });
   });
 });
 // todo login
-router.get('/login', async (req, res) => {
+router.post('/login', async (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
+
+  let isPasswordMatched = false;
+  const user = await User.findOne({ email });
+  if (user) {
+    isPasswordMatched = await bcrypt.compare(password, user.password);
+  }
+
+  if (!user || !isPasswordMatched) {
+    return res.status(200).json({
+      resultCode: 4004,
+      dmessage: '이메일 혹은 패스워드를 다시 확인해주세요',
+    });
+  } else {
+    const { accessToken } = await generateTokens(email);
+    res.cookie(`accessToken`, accessToken, {
+      secure: true,
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+    return res.status(200).json({ message: 'success' });
+  }
 });
 
 module.exports = router;

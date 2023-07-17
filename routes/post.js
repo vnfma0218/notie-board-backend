@@ -42,7 +42,10 @@ router.get('/:id', async (req, res) => {
       path: 'comment',
       populate: { path: 'user', select: 'nickname' },
     });
-
+  foundedPost.comment = foundedPost.comment.map((el) => ({
+    ...el,
+    isMine: user ? el.user._id.equals(user._id) : false,
+  }));
   if (foundedPost) {
     return res.status(200).json({
       ...foundedPost,
@@ -107,6 +110,25 @@ router.post('/comment', authenticateToken, async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'something went wrong' });
   }
+});
+
+// 게시글 답글 삭제
+router.delete('/comment', authenticateToken, async (req, res) => {
+  const commentId = req.body.commentId;
+  const postId = req.body.postId;
+
+  const user = await User.findOne({ email: req.user.email });
+  const post = await Post.findById(postId);
+
+  user.comment = user.comment.filter((c) => {
+    return c.toString() !== commentId;
+  });
+  post.comment = post.comment.filter((c) => {
+    return c.toString() !== commentId;
+  });
+  await user.save();
+  await post.save();
+  res.status(200).json({ resultCode: 2000 });
 });
 
 module.exports = router;

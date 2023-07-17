@@ -1,7 +1,9 @@
 const User = require('../models/user');
 const Post = require('../models/post');
+const Comment = require('../models/commnet');
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 
 const { body, validationResult } = require('express-validator');
 const { paginatedResults } = require('../middleware/paginate');
@@ -20,18 +22,37 @@ router.get('/', paginatedResults(Post), async (req, res, next) => {
   res.status(200).json(res.paginatedResults);
 });
 // 게시글 상세
-router.get('/:id', authenticateToken, async (req, res, next) => {
-  const email = req.user.email;
-  const id = req.params.id;
-  const foundedPost = await Post.findById(id).lean();
-  const user = await User.findOne({ email });
-  if (foundedPost) {
-    return res
-      .status(200)
-      .json({ ...foundedPost, isMine: foundedPost.user.equals(user._id) });
-  } else {
+router.get('/:id', async (req, res) => {
+  const token = req.cookies.accessToken;
+  let email = null;
+  let user = null;
+  if (token) {
+    jwt.verify(token, process.env.ACCESS_TOKEN_PRIVATE_KEY, (err, userInfo) => {
+      email = userInfo ? userInfo.email : null;
+    });
   }
-  return;
+  if (email) {
+    user = await User.findOne({ email });
+  }
+
+  const id = req.params.id;
+  const foundedPost = await Post.findById(id)
+    .lean()
+    .populate({
+      path: 'comment',
+      populate: { path: 'user', select: 'nickname' },
+    });
+
+  if (foundedPost) {
+    return res.status(200).json({
+      ...foundedPost,
+      isMine: user ? foundedPost.user._id.equals(user._id) : false,
+    });
+  } else {
+    return res.status(404).json({
+      message: 'not found',
+    });
+  }
 });
 // 새 게시글 등록
 router.post(
@@ -61,5 +82,31 @@ router.post(
     }
   }
 );
+
+// 게시글 답글
+router.post('/comment', authenticateToken, async (req, res) => {
+  const text = req.body.text;
+  try {
+    const user = await User.findOne({ email: req.user.email });
+    const post = await Post.findById(req.body.id);
+
+    if (!user) {
+      res.status(401).json({ message: 'no uesr' });
+    }
+    // 답글 생성
+    const createdComment = await Comment.create({
+      text,
+      user,
+    });
+
+    user.comment.push(createdComment);
+    post.comment.push(createdComment);
+    await user.save();
+    await post.save();
+    res.status(200).json({ resultCode: 2000 });
+  } catch (error) {
+    res.status(500).json({ message: 'something went wrong' });
+  }
+});
 
 module.exports = router;

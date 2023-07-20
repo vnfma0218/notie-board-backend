@@ -1,12 +1,28 @@
+const path = require('path');
+
 const Axios = require('axios');
+const User = require('../models/user');
 const express = require('express');
 const generateTokens = require('../utils/generateTokens');
 const bcrypt = require('bcrypt');
+
 const saltRounds = 10;
+
+const multer = require('multer');
+// Define the storage for uploaded files
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+const upload = multer({ storage: storage });
+
 const { authenticateToken } = require('../middleware/authenticationToken');
 
 require('dotenv').config();
-const User = require('../models/user');
 
 const router = express.Router();
 
@@ -109,8 +125,10 @@ router.post('/signup', async (req, res) => {
     });
   });
 });
-// todo login
+
+// 로그인
 router.post('/login', async (req, res) => {
+  console.log('login~~~~~~~~!!!!');
   const email = req.body.email;
   const password = req.body.password;
 
@@ -134,6 +152,40 @@ router.post('/login', async (req, res) => {
     });
     return res.status(200).json({ message: 'success' });
   }
+});
+
+// 프로필 변경
+router.put(
+  '/profile',
+  authenticateToken,
+  upload.single('file'),
+  async (req, res) => {
+    const user = await User.findOne({ email: req.user.email });
+    const nickname = req.body.nickname;
+    const fileData = req.file;
+    user.avatar = {
+      filename: fileData.filename,
+      path: fileData.path,
+    };
+    user.nickname = nickname;
+    await user.save();
+    return res.status(200).json({ message: 'success' });
+  }
+);
+// 프로필 get
+router.get('/profile', authenticateToken, async (req, res) => {
+  const user = await User.findOne({ email: req.user.email });
+  const filename = user.avatar.filename;
+  console.log('filename', filename);
+  const fileUrl =
+    req.protocol + '://' + req.get('host') + '/uploads/' + filename;
+  return res
+    .status(200)
+    .json({
+      avatar: filename ? fileUrl : null,
+      nickname: user.nickname,
+      email: user.email,
+    });
 });
 
 module.exports = router;

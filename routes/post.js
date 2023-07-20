@@ -18,9 +18,17 @@ const validate = (req, res, next) => {
   return res.status(403).json({ message: errors.array()[0].msg });
 };
 // 게시글 전체목록
-router.get('/', paginatedResults(Post), async (req, res, next) => {
-  res.status(200).json(res.paginatedResults);
-});
+router.get(
+  '/',
+  paginatedResults(Post, {
+    path: 'user',
+    select: 'nickname',
+  }),
+  async (req, res, next) => {
+    // console.log(res.paginatedResults);
+    res.status(200).json(res.paginatedResults);
+  }
+);
 // 게시글 상세
 router.get('/:id', async (req, res) => {
   const token = req.cookies.accessToken;

@@ -1,7 +1,10 @@
+const path = require('path');
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
+const multer = require('multer');
 
 const app = express();
 const port = 8080;
@@ -20,7 +23,10 @@ const corsOptions = {
   },
   credentials: true,
 };
+// Serve static files from the 'uploads' directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use(express.static('public'));
 app.use(
   cors({
     credentials: true,

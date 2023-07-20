@@ -7,7 +7,7 @@ const generateTokens = async (email) => {
     const accessToken = jwt.sign(
       payload,
       process.env.ACCESS_TOKEN_PRIVATE_KEY,
-      { expiresIn: '1h' }
+      { expiresIn: '2h' }
     );
     const refreshToken = jwt.sign(
       payload,

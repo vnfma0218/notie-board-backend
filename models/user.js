@@ -19,6 +19,10 @@ const userSchema = new Schema({
     type: String,
     required: true,
   },
+  avatar: {
+    filename: String,
+    path: String,
+  },
   comment: [{ type: mongoose.Types.ObjectId, ref: 'Comment' }],
   createdAt: {
     type: Date,

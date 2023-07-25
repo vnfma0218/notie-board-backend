@@ -23,6 +23,9 @@ const userSchema = new Schema({
     filename: String,
     path: String,
   },
+  defaultAvatar: {
+    type: String,
+  },
   comment: [{ type: mongoose.Types.ObjectId, ref: 'Comment' }],
   createdAt: {
     type: Date,

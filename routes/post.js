@@ -1,6 +1,8 @@
 const User = require('../models/user');
 const Post = require('../models/post');
 const Comment = require('../models/commnet');
+const Like = require('../models/like');
+
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
@@ -22,13 +24,41 @@ router.get(
   '/',
   paginatedResults(Post, {
     path: 'user',
-    select: 'nickname',
+    select: 'nickname avatar defaultAvatar',
   }),
-  async (req, res, next) => {
-    // console.log(res.paginatedResults);
+  async (req, res) => {
+    res.paginatedResults.results = res.paginatedResults.results.map((el) => {
+      console.log('el', el.user.defaultAvatar);
+      return {
+        ...el.toObject(),
+        user: {
+          nickname: el.user.nickname,
+          avatar: el.user.defaultAvatar
+            ? el.user.defaultAvatar
+            : req.protocol +
+              '://' +
+              req.get('host') +
+              '/uploads/' +
+              el.user.avatar.filename,
+        },
+      };
+    });
+
     res.status(200).json(res.paginatedResults);
   }
 );
+// 게시글 수정
+router.put('/', async (req, res) => {
+  const postId = req.body.id;
+  const title = req.body.title;
+  const content = req.body.content;
+
+  const foundedPost = await Post.findById(postId);
+  foundedPost.title = title;
+  foundedPost.content = content;
+  await foundedPost.save();
+  res.status(200).json({ resultCode: 2000 });
+});
 // 게시글 상세
 router.get('/:id', async (req, res) => {
   const token = req.cookies.accessToken;
@@ -46,17 +76,23 @@ router.get('/:id', async (req, res) => {
   const id = req.params.id;
   const foundedPost = await Post.findById(id)
     .lean()
+    .populate({ path: 'user', select: '-password' })
     .populate({
       path: 'comment',
-      populate: { path: 'user', select: 'nickname' },
+      populate: { path: 'user', select: 'nickname avatar defaultAvatar' },
     });
   if (foundedPost.comment) {
     foundedPost.comment = foundedPost.comment.map((el) => ({
       ...el,
+      user: { ...el.user, avatar: el.user.defaultAvatar },
       isMine: user ? el.user._id.equals(user._id) : false,
     }));
   }
+  const foundedLike = await Like.findOne({ post: foundedPost });
 
+  if (foundedLike) {
+    foundedPost.isLiked = foundedLike.user._id.equals(user._id);
+  }
   if (foundedPost) {
     return res.status(200).json({
       ...foundedPost,
@@ -115,6 +151,7 @@ router.post('/comment', authenticateToken, async (req, res) => {
 
     user.comment.push(createdComment);
     post.comment.push(createdComment);
+    post.commentCount += 1;
     await user.save();
     await post.save();
     res.status(200).json({ resultCode: 2000 });
@@ -156,6 +193,29 @@ router.put('/comment', authenticateToken, async (req, res) => {
   const result = await foundedComment.save();
 
   console.log('result', result);
+  res.status(200).json({ resultCode: 2000 });
+});
+// 게시글 좋아요
+router.post('/like', authenticateToken, async (req, res) => {
+  const postId = req.body.postId;
+  const foundedPost = await Post.findById(postId);
+  const user = await User.findOne({ email: req.user.email });
+
+  foundedPost.likeCount = foundedPost.likeCount ? foundedPost.likeCount + 1 : 1;
+  await foundedPost.save();
+  await Like.create({ post: foundedPost, user });
+
+  res.status(200).json({ resultCode: 2000 });
+});
+// 게시글 좋아요 취소
+router.delete('/like', authenticateToken, async (req, res) => {
+  const postId = req.body.postId;
+  const foundedPost = await Post.findById(postId);
+
+  foundedPost.likeCount = foundedPost.likeCount ? foundedPost.likeCount - 1 : 0;
+  await foundedPost.save();
+  await Like.deleteOne({ post: foundedPost });
+
   res.status(200).json({ resultCode: 2000 });
 });
 

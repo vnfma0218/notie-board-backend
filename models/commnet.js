@@ -18,6 +18,11 @@ const commentSchema = new Schema({
     type: Date,
     default: Date.now, // 기본값
   },
+  likeCount: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
 });
 
 // _id로 된 필드를 삭제하고 id값으로 바꿈

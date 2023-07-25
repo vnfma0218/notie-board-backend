@@ -1,4 +1,5 @@
 const path = require('path');
+const jwt = require('jsonwebtoken');
 
 const Axios = require('axios');
 const User = require('../models/user');
@@ -42,7 +43,7 @@ router.get('/auth/kakao', async (req, res) => {
           grant_type: 'authorization_code',
           client_id: process.env.KAKAO_RESTAPIKEY,
           code,
-          redirect_uri: 'http://localhost:8080/user/auth/kakao',
+          redirect_uri: 'https://prblog.fly.dev/user/auth/kakao',
           client_secret: process.env.KAKAO_SECRET_KEY,
         },
       }
@@ -93,7 +94,12 @@ router.get('/isLoggedIn', authenticateToken, async (req, res) => {
   }
 });
 router.get('/logout', async (req, res) => {
-  res.clearCookie('accessToken');
+  console.log('/logout~~!~!~!~!~!~!');
+  res.clearCookie('accessToken', {
+    secure: true,
+    httpOnly: true,
+    sameSite: 'none',
+  });
   res.status(200).json({ message: 'success' });
 });
 router.post('/signup', async (req, res) => {
@@ -112,14 +118,19 @@ router.post('/signup', async (req, res) => {
       message: '중복된 이메일 혹은 닉네임이 존재합니다.',
     });
   }
+  const avatarUrl = `https://source.boringavatars.com/beam/120/${nickname}`;
 
   bcrypt.genSalt(saltRounds, function (err, salt) {
     if (err) return res.status(403);
     bcrypt.hash(password, salt, function (err, hashedPassword) {
       // hash의 첫번째 인자: 비밀번호의 Plain Text
       if (err) return res.status(403);
-      console.log('hashedPassword', hashedPassword);
-      User.create({ email, password: hashedPassword, nickname }).then(() => {
+      User.create({
+        email,
+        password: hashedPassword,
+        nickname,
+        defaultAvatar: avatarUrl,
+      }).then(() => {
         res.status(200).json({ resultCode: 2000, message: 'success' });
       });
     });
@@ -128,7 +139,7 @@ router.post('/signup', async (req, res) => {
 
 // 로그인
 router.post('/login', async (req, res) => {
-  console.log('login~~~~~~~~!!!!');
+  console.log('login~~~~~~~~!!!');
   const email = req.body.email;
   const password = req.body.password;
 
@@ -148,7 +159,7 @@ router.post('/login', async (req, res) => {
     res.cookie(`accessToken`, accessToken, {
       secure: true,
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
     });
     return res.status(200).json({ message: 'success' });
   }
@@ -163,29 +174,39 @@ router.put(
     const user = await User.findOne({ email: req.user.email });
     const nickname = req.body.nickname;
     const fileData = req.file;
-    user.avatar = {
-      filename: fileData.filename,
-      path: fileData.path,
-    };
+    if (fileData) {
+      user.avatar = {
+        filename: fileData.filename,
+        path: fileData.path,
+      };
+    }
+
     user.nickname = nickname;
     await user.save();
-    return res.status(200).json({ message: 'success' });
+    return res.status(200).json({ resultCode: 2000, message: 'success' });
   }
 );
 // 프로필 get
-router.get('/profile', authenticateToken, async (req, res) => {
-  const user = await User.findOne({ email: req.user.email });
-  const filename = user.avatar.filename;
-  console.log('filename', filename);
-  const fileUrl =
-    req.protocol + '://' + req.get('host') + '/uploads/' + filename;
-  return res
-    .status(200)
-    .json({
-      avatar: filename ? fileUrl : null,
-      nickname: user.nickname,
-      email: user.email,
+router.get('/profile', async (req, res) => {
+  const token = req.cookies.accessToken;
+
+  if (!token) {
+    return res.status(200).json({ email: null, nickname: null });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_PRIVATE_KEY, async (err, user) => {
+    if (err) {
+      return res.sendStatus(403);
+    }
+    const foundedUser = await User.findOne({ email: user.email });
+    const filename = foundedUser.avatar.filename;
+    const fileUrl =
+      req.protocol + '://' + req.get('host') + '/uploads/' + filename;
+    return res.status(200).json({
+      avatar: foundedUser.defaultAvatar ? foundedUser.defaultAvatar : fileUrl,
+      nickname: foundedUser.nickname,
+      email: foundedUser.email,
     });
+  });
 });
 
 module.exports = router;

@@ -43,7 +43,8 @@ router.get('/auth/kakao', async (req, res) => {
           grant_type: 'authorization_code',
           client_id: process.env.KAKAO_RESTAPIKEY,
           code,
-          redirect_uri: 'https://prblog.fly.dev/user/auth/kakao',
+          // redirect_uri: 'https://prblog.fly.dev/user/auth/kakao',
+          redirect_uri: 'http://localhost:8080/user/auth/kakao',
           client_secret: process.env.KAKAO_SECRET_KEY,
         },
       }
@@ -103,6 +104,7 @@ router.get('/logout', async (req, res) => {
   res.status(200).json({ message: 'success' });
 });
 router.post('/signup', async (req, res) => {
+  console.log('회원가입~!~!');
   const email = req.body.email;
   const password = req.body.password;
   const nickname = req.body.nickname;
@@ -161,7 +163,7 @@ router.post('/login', async (req, res) => {
       httpOnly: true,
       sameSite: 'none',
     });
-    return res.status(200).json({ message: 'success' });
+    return res.status(200).json({ message: 'success', accessToken });
   }
 });
 

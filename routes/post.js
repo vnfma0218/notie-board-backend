@@ -162,6 +162,7 @@ router.post('/comment', authenticateToken, async (req, res) => {
 
 // 게시글 답글 삭제
 router.delete('/comment', authenticateToken, async (req, res) => {
+  console.log('---------게시글 댓글 삭제 ---------------');
   const commentId = req.body.commentId;
   const postId = req.body.postId;
 
@@ -170,18 +171,20 @@ router.delete('/comment', authenticateToken, async (req, res) => {
 
   // 댓글 삭제
   await Comment.findByIdAndDelete(commentId);
-
-  // 유저에서 삭제
-  user.comment = user.comment.filter((c) => {
-    return c.toString() !== commentId;
+  await user.updateOne({
+    $pull: {
+      comment: commentId,
+    },
   });
-  // 게시글에서삭제
-  post.comment = post.comment.filter((c) => {
-    return c.toString() !== commentId;
+  await post.updateOne({
+    $pull: {
+      comment: commentId,
+    },
+    $set: {
+      commentCount: post.commentCount - 1,
+    },
   });
-  await user.save();
-  await post.save();
-  res.status(200).json({ resultCode: 2000 });
+  return res.status(200).json({ resultCode: 2000 });
 });
 
 // 게시글 답글 수정

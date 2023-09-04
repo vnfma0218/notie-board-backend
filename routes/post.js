@@ -1,9 +1,12 @@
+const express = require('express');
+
 const User = require('../models/user');
 const Post = require('../models/post');
+const Activity = require('../models/activity');
 const Comment = require('../models/commnet');
 const Like = require('../models/like');
 
-const express = require('express');
+const moment = require('moment');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 
@@ -125,7 +128,16 @@ router.post(
         content: req.body.content,
         commentCount: 0,
       });
+      // activity 스키마 추가
 
+      await Activity.create({
+        text: '게시물을 작성하였습니다.',
+        user: user._id,
+        post: newPost._id,
+        createdAt: moment().format('YYYY-MM-DD HH:mm:ss'),
+      });
+      console.log('test!!@!@!~!~!');
+      console.log(moment().format('YYYY-MM-DD HH:mm:ss'));
       res.status(201).json({ id: newPost._id });
     } catch (err) {
       next(err);

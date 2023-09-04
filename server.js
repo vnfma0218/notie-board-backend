@@ -54,9 +54,11 @@ app.use(cookieParser());
 // 라우터 모듈
 const postRouter = require('./routes/post');
 const usersRouter = require('./routes/users');
+const activityRouter = require('./routes/activity');
 // 라우터 연결
 app.use('/post', postRouter); // post에 관한 요청
-app.use('/user', usersRouter); // post에 관한 요청
+app.use('/user', usersRouter); // user 관한 요청
+app.use('/', activityRouter); // activity에 관한 요청
 app.get('/', (req, res) => {
   res.send('hello world!');
 });

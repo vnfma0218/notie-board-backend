@@ -31,7 +31,7 @@ const postSchema = new Schema({
     default: 0,
   },
   createdAt: {
-    type: String,
+    type: Date,
     default: Date.now, // 기본값
   },
 });

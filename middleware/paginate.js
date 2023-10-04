@@ -3,9 +3,18 @@ function paginatedResults(model, populateModel) {
     const results = {};
     const page = parseInt(req.query.page);
     const limit = parseInt(req.query.limit);
+    const type = req.query.type;
+
+    const sortCriteria = {};
+
+    if (type) {
+      sortCriteria.createdAt = type === 'desc' ? -1 : 1;
+      sortCriteria.likeCount = type === 'likeCount' ? 1 : -1;
+    }
 
     const startIdx = (page - 1) * limit;
     const endIdx = page * limit;
+
     results.total = await model.count();
     results.pageCount = Math.ceil(results.total / limit);
 
@@ -25,15 +34,17 @@ function paginatedResults(model, populateModel) {
     try {
       results.results = await model
         .find()
+        .sort(sortCriteria)
         .populate(populateModel ? populateModel : '')
         .limit(limit)
         .skip(startIdx)
         .exec();
+
       res.paginatedResults = results;
 
       next();
     } catch (e) {
-      res.status(500).jsos({ message: e.message });
+      res.status(500).json({ message: e.message });
     }
   };
 }

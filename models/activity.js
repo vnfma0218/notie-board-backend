@@ -10,18 +10,30 @@ const activitySchema = new Schema({
     required: true, // null 여부
   },
   user: {
-    type: ObjectId, // 몽고디비에서 ObjectId타입으로 데이터를 다룸
-    ref: 'User', // user.js스키마에 reference로 연결되어 있음. join같은 기능. 나중에 populate에 사용
+    type: ObjectId,
+    ref: 'User',
   },
   targetuUser: {
-    type: ObjectId, // 몽고디비에서 ObjectId타입으로 데이터를 다룸
-    ref: 'User', // user.js스키마에 reference로 연결되어 있음. join같은 기능. 나중에 populate에 사용
+    type: ObjectId,
+    ref: 'User',
   },
   post: { type: ObjectId, ref: 'Post' },
+  isPosting: {
+    type: Boolean,
+    default: true,
+  },
 
   createdAt: {
     type: String,
     default: Date.now, // 기본값
+  },
+});
+
+activitySchema.set('toJSON', {
+  virtuals: true,
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    delete ret._id;
   },
 });
 

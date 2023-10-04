@@ -10,9 +10,8 @@ const multer = require('multer');
 const app = express();
 const port = 8080;
 // const db = require('./db.js'); // db 불러오기
-// creating 24 hours from millisecond'
-const oneDay = 1000 * 60 * 60 * 24;
 const uri = process.env.ATLAS_URI;
+console.log('uri', uri);
 mongoose.set('strictQuery', false);
 mongoose
   .connect(uri, {

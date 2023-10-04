@@ -5,6 +5,8 @@ const Axios = require('axios');
 const User = require('../models/user');
 const express = require('express');
 const generateTokens = require('../utils/generateTokens');
+const verifyRefreshToken = require('../utils/verifyRefreshToken');
+
 const bcrypt = require('bcrypt');
 
 const saltRounds = 10;
@@ -77,12 +79,13 @@ router.get('/auth/kakao', async (req, res) => {
       httpOnly: true,
       sameSite: 'lax',
     });
+    res.cookie(`refreshToken`, refreshToken, {
+      secure: true,
+      httpOnly: true,
+      sameSite: 'lax',
+    });
     res.redirect('http://localhost:3000');
-    // res.status(200).json({ message: 'success login' });
-
-    console.log('accessToken', accessToken);
   } catch (e) {
-    console.log(e);
     res.status(400).end('Sorry, Login Error!');
   }
 });
@@ -94,6 +97,8 @@ router.get('/isLoggedIn', authenticateToken, async (req, res) => {
     res.status(200).json({ isLoggedIn: false });
   }
 });
+
+// 로그아웃
 router.get('/logout', async (req, res) => {
   console.log('/logout~~!~!~!~!~!~!');
   res.clearCookie('accessToken', {
@@ -101,8 +106,20 @@ router.get('/logout', async (req, res) => {
     httpOnly: true,
     sameSite: 'none',
   });
+  res.clearCookie('token', {
+    secure: true,
+    httpOnly: true,
+    sameSite: 'none',
+  });
+  res.clearCookie('refreshToken', {
+    secure: true,
+    httpOnly: true,
+    sameSite: 'none',
+  });
   res.status(200).json({ message: 'success' });
 });
+
+//회원가입
 router.post('/signup', async (req, res) => {
   console.log('회원가입~!~!');
   const email = req.body.email;
@@ -157,8 +174,13 @@ router.post('/login', async (req, res) => {
       dmessage: '이메일 혹은 패스워드를 다시 확인해주세요',
     });
   } else {
-    const { accessToken } = await generateTokens(email);
+    const { accessToken, refreshToken } = await generateTokens(email);
     res.cookie(`accessToken`, accessToken, {
+      secure: true,
+      httpOnly: true,
+      sameSite: 'none',
+    });
+    res.cookie(`refreshToken`, refreshToken, {
       secure: true,
       httpOnly: true,
       sameSite: 'none',
@@ -188,26 +210,41 @@ router.put(
     return res.status(200).json({ resultCode: 2000, message: 'success' });
   }
 );
-// 프로필 get
-router.get('/profile', async (req, res) => {
-  const token = req.cookies.accessToken;
+// 프로필 조회
+router.get('/profile', authenticateToken, async (req, res) => {
+  const foundedUser = await User.findOne({ email: req.user.email });
+  const filename = foundedUser.avatar.filename;
+  const fileUrl =
+    req.protocol + '://' + req.get('host') + '/uploads/' + filename;
+  return res.status(200).json({
+    avatar: foundedUser.defaultAvatar ? foundedUser.defaultAvatar : fileUrl,
+    nickname: foundedUser.nickname,
+    email: foundedUser.email,
+  });
+});
 
-  if (!token) {
-    return res.status(200).json({ email: null, nickname: null });
-  }
-  jwt.verify(token, process.env.ACCESS_TOKEN_PRIVATE_KEY, async (err, user) => {
-    if (err) {
-      return res.sendStatus(403);
+// 토큰 재요청
+router.get('/refresh', async (req, res) => {
+  const token = req.cookies.refreshToken;
+
+  verifyRefreshToken(token).then(async (data) => {
+    console.log(data);
+    if (!data.error) {
+      const { accessToken, refreshToken } = await generateTokens(
+        data.tokenDetails.email
+      );
+      res.cookie(`accessToken`, accessToken, {
+        secure: true,
+        httpOnly: true,
+        sameSite: 'none',
+      });
+      res.cookie(`refreshToken`, refreshToken, {
+        secure: true,
+        httpOnly: true,
+        sameSite: 'none',
+      });
+      return res.status(200).json({ message: 'success', accessToken });
     }
-    const foundedUser = await User.findOne({ email: user.email });
-    const filename = foundedUser.avatar.filename;
-    const fileUrl =
-      req.protocol + '://' + req.get('host') + '/uploads/' + filename;
-    return res.status(200).json({
-      avatar: foundedUser.defaultAvatar ? foundedUser.defaultAvatar : fileUrl,
-      nickname: foundedUser.nickname,
-      email: foundedUser.email,
-    });
   });
 });
 

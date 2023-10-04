@@ -31,7 +31,6 @@ router.get(
   }),
   async (req, res) => {
     res.paginatedResults.results = res.paginatedResults.results.map((el) => {
-      console.log('el', el.user.defaultAvatar);
       return {
         ...el.toObject(),
         user: {
@@ -91,6 +90,7 @@ router.get('/:id', async (req, res) => {
       isMine: user ? el.user._id.equals(user._id) : false,
     }));
   }
+
   const foundedLike = await Like.findOne({ post: foundedPost });
 
   if (foundedLike) {
@@ -129,15 +129,12 @@ router.post(
         commentCount: 0,
       });
       // activity 스키마 추가
-
       await Activity.create({
-        text: '게시물을 작성하였습니다.',
+        text: '게시판에 게시물을 작성하였습니다.',
         user: user._id,
         post: newPost._id,
         createdAt: moment().format('YYYY-MM-DD HH:mm:ss'),
       });
-      console.log('test!!@!@!~!~!');
-      console.log(moment().format('YYYY-MM-DD HH:mm:ss'));
       res.status(201).json({ id: newPost._id });
     } catch (err) {
       next(err);
@@ -151,6 +148,7 @@ router.post('/comment', authenticateToken, async (req, res) => {
   try {
     const user = await User.findOne({ email: req.user.email });
     const post = await Post.findById(req.body.id);
+    const postingUser = await User.findById(post.user);
 
     if (!user) {
       res.status(401).json({ message: 'no uesr' });
@@ -159,6 +157,15 @@ router.post('/comment', authenticateToken, async (req, res) => {
     const createdComment = await Comment.create({
       text,
       user,
+    });
+
+    // activity 스키마 추가
+    await Activity.create({
+      text: `${postingUser.nickname}님의 게시물에 답변을 작성하였습니다.`,
+      user: user._id,
+      post: post,
+      isPosting: false,
+      createdAt: moment().format('YYYY-MM-DD HH:mm:ss'),
     });
 
     user.comment.push(createdComment);
@@ -207,7 +214,6 @@ router.put('/comment', authenticateToken, async (req, res) => {
   foundedComment.text = text;
   const result = await foundedComment.save();
 
-  console.log('result', result);
   res.status(200).json({ resultCode: 2000 });
 });
 // 게시글 좋아요
